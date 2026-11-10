@@ -44,7 +44,7 @@ async function login() {
 $('logoutBtn').onclick = () => { token = ''; me = null; localStorage.removeItem('ofimatch_token'); location.reload(); };
 async function loadPros() {
   try { const q = $('search').value; const d = await api('/api/professionals' + (q ? '?search=' + encodeURIComponent(q) : '')); pros = d.professionals;
-    $('nearby').innerHTML = pros.length ? '<div class="card"><h3>Profesionales cercanos</h3>' + pros.slice(0, 4).map(p => `<p><b>${p.name}</b> — ${p.trade} · ${p.distance_km} km · ${p.avg_rating ? '★' + p.avg_rating + ' (' + p.review_count + ')' : 'Sin reseñas aún'} · Desde ${money(p.rate)}</p>`).join('') + '</div>' : '<div class="card"><p>No hay profesionales todavía. Sé el primero en registrarte como profesional.</p></div>';
+    $('nearby').innerHTML = pros.length ? '<div class="card"><h3>Profesionales cercanos</h3>' + pros.slice(0, 4).map(p => `<p><b>${p.name}</b>${p.is_example ? ' 🧪 Ejemplo' : ''} — ${p.trade} · ${p.distance_km} km · ${p.avg_rating ? '★' + p.avg_rating + ' (' + p.review_count + ')' : 'Sin reseñas aún'} · Desde ${money(p.rate)}</p>`).join('') + '</div>' : '<div class="card"><p>No hay profesionales todavía. Sé el primero en registrarte como profesional.</p></div>';
   } catch (e) { $('nearby').innerHTML = '<div class="card">' + e.message + '</div>'; }
 }
 function priceListHTML(trade) {
@@ -56,7 +56,7 @@ function openDeck(trade) { $('deckTitle').textContent = trade + ' cerca de ti'; 
 function renderDeck(list) {
   if (!list.length) { $('deck').innerHTML = '<div class="card">No hay profesionales de este oficio todavía.</div>'; return; }
   const p = list[0]; currentPro = p;
-  $('deck').innerHTML = `<div class="deck-card"><div class="deck-photo">${p.photo_url ? `<img src="${p.photo_url}">` : ''}<div class="inner"><span class="badge">Disponible ahora</span><h2 style="margin:6px 0 0">${p.name}</h2><p>${p.trade} · 📍 ${p.distance_km} km · ${p.avg_rating ? '★' + p.avg_rating + ' (' + p.review_count + ')' : 'Sin reseñas aún'}</p></div></div>
+  $('deck').innerHTML = `<div class="deck-card"><div class="deck-photo">${p.photo_url ? `<img src="${p.photo_url}">` : ''}<div class="inner"><span class="badge">Disponible ahora</span>${p.is_example ? ' <span class="badge">🧪 Prospecto de ejemplo</span>' : ''}<h2 style="margin:6px 0 0">${p.name}</h2><p>${p.trade} · 📍 ${p.distance_km} km · ${p.avg_rating ? '★' + p.avg_rating + ' (' + p.review_count + ')' : 'Sin reseñas aún'}</p></div></div>
   <div style="padding:14px"><span class="chip">${p.eta_text || 'Disponible'}</span> <span class="chip">Desde ${money(p.rate)}</span><p class="muted">${p.experience || ''} · ${p.zone}</p>
   <div class="swipe-row"><button onclick="swipe('passed')" style="color:#ef4444">✕</button><button onclick="alert('Oficio: ${p.trade}\\nZona: ${p.zone}\\nTarifa desde ${money(p.rate)}\\n${p.experience || ''}')" style="color:#2563eb">i</button><button onclick="swipe('liked')" style="color:#22c55e">♥</button></div></div></div>`;
 }
