@@ -22,8 +22,15 @@ chat, pago con tarjeta por Mercado Pago, rastreo tipo Rappi y calificación.
   (12 en total), creados con `scripts/seed-prospects.js` y marcados con el
   distintivo "🧪 Prospecto de ejemplo" en el mazo y en Profesionales
   cercanos, para que la página no se vea vacía mientras llegan los primeros
-  profesionales reales. No son personas reales y no responden mensajes; los
-  profesionales reales que se registren aparecen sin el distintivo.
+  profesionales reales. No son personas reales; solo Carlos responde
+  mensajes, automáticamente con IA (ver abajo). Los profesionales reales
+  que se registren aparecen sin el distintivo.
+- **Prospecto con IA:** Carlos, el plomero de ejemplo, responde solo en el
+  chat con respuestas automáticas (`lib/ai-reply.js`, sin servicio externo):
+  saluda, entiende el problema, identifica el servicio y deja la cotización
+  lista para confirmar, con el distintivo "🤖 Responde con IA". Solo
+  contesta antes de contratar el servicio; una vez contratado, ya no
+  interviene.
 - **Pagos: solo con tarjeta, cero efectivo.** Pasarela: Mercado Pago.
 - **Precios (fórmula única en `lib/pricing.js`):** precio del servicio +
   $150 de comisión fija por cada lado. Los $150 son **libres de comisión,

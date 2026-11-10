@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const { DatabaseSync } = require('node:sqlite');
 const { chargesFor, extraHoursFor, INCLUDED_MINUTES } = require('./lib/pricing');
+const { aiReplyFor } = require('./lib/ai-reply');
 
 const PORT = Number(process.env.PORT || 3000);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-cambiar-en-produccion';
@@ -34,7 +35,7 @@ CREATE TABLE IF NOT EXISTS professionals (
   trade TEXT NOT NULL, zone TEXT NOT NULL, rate INTEGER NOT NULL,
   experience TEXT DEFAULT '', eta_text TEXT DEFAULT 'Disponible',
   distance_km REAL DEFAULT 1.0, photo_url TEXT DEFAULT '', available INTEGER DEFAULT 1,
-  is_example INTEGER DEFAULT 0,
+  is_example INTEGER DEFAULT 0, ai_reply INTEGER DEFAULT 0,
   created_at TEXT NOT NULL, FOREIGN KEY(user_id) REFERENCES users(id)
 );
 CREATE TABLE IF NOT EXISTS swipes (
@@ -79,6 +80,7 @@ CREATE TABLE IF NOT EXISTS requests (
 
  // Migración: bases ya creadas antes de la columna is_example.
  try { db.exec('ALTER TABLE professionals ADD COLUMN is_example INTEGER DEFAULT 0'); } catch {}
+ try { db.exec('ALTER TABLE professionals ADD COLUMN ai_reply INTEGER DEFAULT 0'); } catch {}
 
 const CATEGORIES = ['Plomero','Electricista','Aire Acondicionado','Carpintero','Pintor','Albañil','Limpieza','Mecánico','Tecnología','Mudanzas','Jardinería','Más servicios'];
 const TRACKING_STEPS = ['confirmado','en_camino','llego','trabajando','terminado'];
@@ -156,17 +158,18 @@ app.post('/api/upload', auth, upload.single('photo'), (req, res) => {
 // ---- Profesionales (solo datos públicos; sin dirección exacta ni teléfono) ----
 app.post('/api/professionals', auth, (req, res) => {
   if (req.user.role !== 'ofrezco') return res.status(403).json({ error: 'Solo una cuenta de "Ofrezco un oficio" puede crear un perfil de profesional.' });
-  const { trade, zone, rate, experience, eta_text, distance_km, photo_url, is_example } = req.body || {};
+  const { trade, zone, rate, experience, eta_text, distance_km, photo_url, is_example, ai_reply } = req.body || {};
   if (!trade || !zone || !rate) return res.status(400).json({ error: 'Faltan oficio, zona y tarifa.' });
   const isExample = is_example ? 1 : 0;
+  const aiReply = ai_reply ? 1 : 0;
   const existing = db.prepare('SELECT * FROM professionals WHERE user_id=?').get(req.user.id);
   if (existing) {
-    db.prepare('UPDATE professionals SET trade=?, zone=?, rate=?, experience=?, eta_text=?, distance_km=?, photo_url=?, is_example=? WHERE user_id=?')
-      .run(trade, zone, Number(rate), experience || '', eta_text || 'Disponible', Number(distance_km) || 1.0, photo_url || existing.photo_url, isExample, req.user.id);
+    db.prepare('UPDATE professionals SET trade=?, zone=?, rate=?, experience=?, eta_text=?, distance_km=?, photo_url=?, is_example=?, ai_reply=? WHERE user_id=?')
+      .run(trade, zone, Number(rate), experience || '', eta_text || 'Disponible', Number(distance_km) || 1.0, photo_url || existing.photo_url, isExample, aiReply, req.user.id);
     return res.json({ professional: proWithRating(db.prepare('SELECT * FROM professionals WHERE user_id=?').get(req.user.id)) });
   }
-  const r = db.prepare('INSERT INTO professionals (user_id, trade, zone, rate, experience, eta_text, distance_km, photo_url, is_example, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
-    .run(req.user.id, trade, zone, Number(rate), experience || '', eta_text || 'Disponible', Number(distance_km) || 1.0, photo_url || '', isExample, now());
+  const r = db.prepare('INSERT INTO professionals (user_id, trade, zone, rate, experience, eta_text, distance_km, photo_url, is_example, ai_reply, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+    .run(req.user.id, trade, zone, Number(rate), experience || '', eta_text || 'Disponible', Number(distance_km) || 1.0, photo_url || '', isExample, aiReply, now());
   res.status(201).json({ professional: proWithRating(db.prepare('SELECT * FROM professionals WHERE id=?').get(r.lastInsertRowid)) });
 });
 app.get('/api/professionals', (req, res) => {
@@ -217,8 +220,23 @@ app.get('/api/conversations', auth, (req, res) => {
 app.get('/api/conversations/:id/messages', auth, (req, res) => {
   const conv = conversationFor(req.user, req.params.id);
   if (!conv) return res.status(404).json({ error: 'Chat no encontrado.' });
-  res.json({ messages: db.prepare('SELECT * FROM messages WHERE conversation_id=? ORDER BY id ASC').all(conv.id) });
+  const pro = db.prepare('SELECT p.*, u.name FROM professionals p JOIN users u ON u.id=p.user_id WHERE p.id=?').get(conv.professional_id);
+  res.json({ messages: db.prepare('SELECT * FROM messages WHERE conversation_id=? ORDER BY id ASC').all(conv.id), ai_reply: pro ? !!pro.ai_reply : false, pro_name: pro ? pro.name : '' });
 });
+function sendAiReply(convId, pro, proName, clientText) {
+  // Solo si el último mensaje sigue siendo del cliente (nadie humano contestó en medio)
+  // y aún no hay un servicio contratado en esta conversación.
+  const last = db.prepare('SELECT * FROM messages WHERE conversation_id=? ORDER BY id DESC LIMIT 1').get(convId);
+  if (!last || last.sender_id !== db.prepare('SELECT client_id FROM conversations WHERE id=?').get(convId)?.client_id) return;
+  if (db.prepare('SELECT * FROM services WHERE conversation_id=?').get(convId)) return;
+  const hasQuote = !!db.prepare("SELECT * FROM messages WHERE conversation_id=? AND kind LIKE 'quote:%'").get(convId);
+  const reply = aiReplyFor(pro.trade, clientText, proName, pro.eta_text, hasQuote);
+  const insert = (text, kind) => db.prepare('INSERT INTO messages (conversation_id, sender_id, text, image_url, kind, created_at) VALUES (?,?,?,?,?,?)').run(convId, pro.user_id, text, '', kind, now());
+  insert(reply.text, 'text');
+  if (reply.quotePrice && !hasQuote) {
+    insert(`El precio sería $${reply.quotePrice}. Puedo llegar en ${Number(pro.eta_text?.replace(/\D/g, '')) || 30} min.`, 'quote:' + reply.quotePrice);
+  }
+}
 app.post('/api/conversations/:id/messages', auth, (req, res) => {
   const conv = conversationFor(req.user, req.params.id);
   if (!conv) return res.status(404).json({ error: 'Chat no encontrado.' });
@@ -226,6 +244,15 @@ app.post('/api/conversations/:id/messages', auth, (req, res) => {
   if (!text && !image_url) return res.status(400).json({ error: 'Escribe un mensaje o adjunta una foto.' });
   const r = db.prepare('INSERT INTO messages (conversation_id, sender_id, text, image_url, kind, created_at) VALUES (?,?,?,?,?,?)')
     .run(conv.id, req.user.id, text || '', image_url || '', image_url ? 'image' : 'text', now());
+  // Si el profesional es un prospecto con respuestas de IA y quien escribió
+  // fue el cliente, la IA contesta sola unos segundos después.
+  if (req.user.id === conv.client_id) {
+    const pro = db.prepare('SELECT p.*, u.name FROM professionals p JOIN users u ON u.id=p.user_id WHERE p.id=?').get(conv.professional_id);
+    if (pro && pro.ai_reply) {
+      const timer = setTimeout(() => { try { sendAiReply(conv.id, pro, pro.name, text || ''); } catch {} }, 6000);
+      if (timer.unref) timer.unref();
+    }
+  }
   res.status(201).json({ message: db.prepare('SELECT * FROM messages WHERE id=?').get(r.lastInsertRowid) });
 });
 // Cotización (la envía el profesional) y confirmación (la hace el cliente)
