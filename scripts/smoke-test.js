@@ -109,6 +109,11 @@ async function req(p, opts = {}, token) {
     // 10. Páginas principales sirven
     const home = await fetch(BASE + '/');
     check('página principal sirve (HTML)', home.ok && (await home.text()).includes('OfiMatch'));
+    // 11. Prospectos ficticios: se marcan con is_example y se ven en el listado
+    const ex = await req('/api/professionals', { method: 'POST', body: JSON.stringify({ trade: 'Plomero', zone: 'CDMX', rate: 600, experience: 'Prospecto ficticio (ejemplo)', eta_text: 'Llegada en 30 min', distance_km: 1.2, is_example: true }) }, pro.d.token);
+    check('perfil de ejemplo se marca is_example', ex.status === 200 && ex.d.professional.is_example === 1, JSON.stringify(ex.d));
+    const list3 = await req('/api/professionals?trade=Plomero');
+    check('listado muestra el distintivo de ejemplo', (list3.d.professionals[0] || {}).is_example === 1);
     const prices = await fetch(BASE + '/service-prices.js');
     const pricesText = prices.ok ? await prices.text() : '';
     check('cotizaciones de referencia sirven', prices.ok && pricesText.includes('SERVICE_PRICES') && pricesText.includes('Desazolve de baño'));
