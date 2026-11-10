@@ -13,6 +13,11 @@ chat, pago con tarjeta por Mercado Pago, rastreo tipo Rappi y calificación.
 - **Flujo en orden:** categorías → mazo para deslizar (✕ / i / ♥) → ¡MATCH! →
   chat (con foto adjunta y cotización) → confirmar servicio → Pago seguro →
   rastreo → calificación (5 estrellas + comentario, solo de reseñas reales).
+- **Cotizaciones de referencia:** cada oficio muestra sus 5 servicios más
+  comunes con precio de referencia "desde $" (en `public/service-prices.js`),
+  en Inicio, en el mazo de cada categoría y como atajos al cotizar en el chat.
+  Son precios orientativos; el profesional confirma la cotización final en
+  el chat antes de que el cliente confirme el servicio.
 - **Pagos: solo con tarjeta, cero efectivo.** Pasarela: Mercado Pago.
 - **Precios (fórmula única en `lib/pricing.js`):** precio del servicio +
   $150 de comisión fija por cada lado. Los $150 son **libres de comisión,
