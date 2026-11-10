@@ -109,6 +109,10 @@ async function req(p, opts = {}, token) {
     // 10. Páginas principales sirven
     const home = await fetch(BASE + '/');
     check('página principal sirve (HTML)', home.ok && (await home.text()).includes('OfiMatch'));
+    const prices = await fetch(BASE + '/service-prices.js');
+    const pricesText = prices.ok ? await prices.text() : '';
+    check('cotizaciones de referencia sirven', prices.ok && pricesText.includes('SERVICE_PRICES') && pricesText.includes('Desazolve de baño'));
+    check('cotizaciones cubren los 12 oficios', ['Plomero', 'Electricista', 'Aire Acondicionado', 'Carpintero', 'Pintor', 'Albañil', 'Limpieza', 'Mecánico', 'Tecnología', 'Mudanzas', 'Jardinería', 'Más servicios'].every(t => pricesText.includes('"' + t + '"')));
   } finally {
     child.kill();
     await wait(500);
