@@ -41,11 +41,12 @@
 <p>✔ Chat en tiempo real<br>✔ Comparte fotos y detalles<br>✔ Recibe una cotización<br>✔ Confirma el servicio</p>
 <button class="btn-primary" onclick="openChat(currentConv)">Ir al chat</button></div></section>
 
-<section id="screen-chat" class="screen"><h2 id="chatTitle">Chat</h2><div id="chatBox" class="card"></div>
+<section id="screen-chat" class="screen"><h2 id="chatTitle">Chat</h2><div id="convList"></div><div id="chatBox" class="card"></div>
 <div id="quoteBox"></div>
 <input id="chatText" placeholder="Escribe un mensaje...">
 <input type="file" id="chatPhoto" accept="image/*">
 <button class="btn-blue" onclick="sendMsg()">Enviar</button>
+<button class="btn-ghost" id="backToConvs" onclick="openConversations()" style="display:none">← Mis mensajes</button>
 <button class="btn-ghost" onclick="show('home')">Volver a Inicio</button></section>
 
 <section id="screen-services" class="screen"><h2>Mis servicios</h2><div id="services"></div></section>
@@ -73,7 +74,7 @@
 <button onclick="show('home')" id="nav-home">🏠<br>Inicio</button>
 <button onclick="show('services')" id="nav-services">🧾<br>Mis servicios</button>
 <button class="pub" onclick="show('home');document.getElementById('em-title').focus()">+</button>
-<button onclick="show('chat')" id="nav-chat">💬<br>Mensajes</button>
+<button onclick="openConversations()" id="nav-chat">💬<br>Mensajes</button>
 <button onclick="show('profile')" id="nav-profile">👤<br>Perfil</button>
 </nav></div>
 <script src="/service-prices.js"></script><script src="/app.js"></script></body></html>

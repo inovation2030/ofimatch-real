@@ -19,6 +19,24 @@ function show(name) {
   if (name === 'pro') loadProView();
   if (name === 'profile') loadProfile();
   if (name === 'home') loadPros();
+  if (name === 'chat' && !currentConv) loadConversations();
+}
+async function openConversations() {
+  currentConv = null;
+  $('chatBox').innerHTML = ''; $('quoteBox').innerHTML = '';
+  $('convList').style.display = ''; $('backToConvs').style.display = 'none';
+  show('chat'); // show() carga la lista de conversaciones
+}
+async function loadConversations() {
+  try {
+    const d = await api('/api/conversations');
+    const list = d.conversations || [];
+    $('convList').innerHTML = list.length ? list.map(c => {
+      const other = me.role === 'ofrezco' ? c.client_name : c.pro_name;
+      const last = c.last && c.last.text ? c.last.text : 'Sin mensajes aún';
+      return `<div class="card" onclick="openChat(${c.id})" style="cursor:pointer"><b>${other}</b> — ${c.trade}<br><span class="muted">${last}</span></div>`;
+    }).join('') : '<div class="card"><p>No tienes conversaciones todavía. Haz match con un profesional desde Inicio.</p></div>';
+  } catch (e) { $('convList').innerHTML = e.message; }
 }
 async function init() {
   config = await api('/api/config');
@@ -44,7 +62,7 @@ async function login() {
 $('logoutBtn').onclick = () => { token = ''; me = null; localStorage.removeItem('ofimatch_token'); location.reload(); };
 async function loadPros() {
   try { const q = $('search').value; const d = await api('/api/professionals' + (q ? '?search=' + encodeURIComponent(q) : '')); pros = d.professionals;
-    $('nearby').innerHTML = pros.length ? '<div class="card"><h3>Profesionales cercanos</h3>' + pros.slice(0, 4).map(p => `<p><b>${p.name}</b>${p.is_example ? ' 🧪 Ejemplo' : ''} — ${p.trade} · ${p.distance_km} km · ${p.avg_rating ? '★' + p.avg_rating + ' (' + p.review_count + ')' : 'Sin reseñas aún'} · Desde ${money(p.rate)}</p>`).join('') + '</div>' : '<div class="card"><p>No hay profesionales todavía. Sé el primero en registrarte como profesional.</p></div>';
+    $('nearby').innerHTML = pros.length ? '<div class="card"><h3>Profesionales cercanos</h3>' + pros.slice(0, 4).map(p => `<p><b>${p.name}</b>${p.is_example ? ' 🧪 Ejemplo' : ''}${p.ai_reply ? ' 🤖 Responde con IA' : ''} — ${p.trade} · ${p.distance_km} km · ${p.avg_rating ? '★' + p.avg_rating + ' (' + p.review_count + ')' : 'Sin reseñas aún'} · Desde ${money(p.rate)}</p>`).join('') + '</div>' : '<div class="card"><p>No hay profesionales todavía. Sé el primero en registrarte como profesional.</p></div>';
   } catch (e) { $('nearby').innerHTML = '<div class="card">' + e.message + '</div>'; }
 }
 function priceListHTML(trade) {
@@ -56,7 +74,7 @@ function openDeck(trade) { $('deckTitle').textContent = trade + ' cerca de ti'; 
 function renderDeck(list) {
   if (!list.length) { $('deck').innerHTML = '<div class="card">No hay profesionales de este oficio todavía.</div>'; return; }
   const p = list[0]; currentPro = p;
-  $('deck').innerHTML = `<div class="deck-card"><div class="deck-photo">${p.photo_url ? `<img src="${p.photo_url}">` : ''}<div class="inner"><span class="badge">Disponible ahora</span>${p.is_example ? ' <span class="badge">🧪 Prospecto de ejemplo</span>' : ''}<h2 style="margin:6px 0 0">${p.name}</h2><p>${p.trade} · 📍 ${p.distance_km} km · ${p.avg_rating ? '★' + p.avg_rating + ' (' + p.review_count + ')' : 'Sin reseñas aún'}</p></div></div>
+  $('deck').innerHTML = `<div class="deck-card"><div class="deck-photo">${p.photo_url ? `<img src="${p.photo_url}">` : ''}<div class="inner"><span class="badge">Disponible ahora</span>${p.is_example ? ' <span class="badge">🧪 Prospecto de ejemplo</span>' : ''}${p.ai_reply ? ' <span class="badge">🤖 Responde con IA</span>' : ''}<h2 style="margin:6px 0 0">${p.name}</h2><p>${p.trade} · 📍 ${p.distance_km} km · ${p.avg_rating ? '★' + p.avg_rating + ' (' + p.review_count + ')' : 'Sin reseñas aún'}</p></div></div>
   <div style="padding:14px"><span class="chip">${p.eta_text || 'Disponible'}</span> <span class="chip">Desde ${money(p.rate)}</span><p class="muted">${p.experience || ''} · ${p.zone}</p>
   <div class="swipe-row"><button onclick="swipe('passed')" style="color:#ef4444">✕</button><button onclick="alert('Oficio: ${p.trade}\\nZona: ${p.zone}\\nTarifa desde ${money(p.rate)}\\n${p.experience || ''}')" style="color:#2563eb">i</button><button onclick="swipe('liked')" style="color:#22c55e">♥</button></div></div></div>`;
 }
@@ -68,11 +86,11 @@ async function swipe(action) {
 }
 async function openChat(convId) {
   currentConv = convId || currentConv; if (!currentConv) { alert('Primero haz match con un profesional.'); return; }
-  show('chat'); loadChat();
+  show('chat'); $('convList').style.display = 'none'; $('backToConvs').style.display = ''; loadChat();
 }
 async function loadChat() {
   try { const d = await api('/api/conversations/' + currentConv + '/messages');
-    $('chatBox').innerHTML = d.messages.map(m => `<div class="msg ${m.sender_id === me.id ? 'me' : 'them'}">${m.image_url ? `<img src="${m.image_url}">` : ''}${m.text ? m.text : ''}</div>`).join('') || '<p class="muted">Hola, el baño se tapó y necesito ayuda hoy. ¿Podrías venir?</p>';
+    $('chatBox').innerHTML = (d.ai_reply ? `<p class="muted">🤖 ${d.pro_name} responde automáticamente con IA.</p>` : '') + (d.messages.map(m => `<div class="msg ${m.sender_id === me.id ? 'me' : 'them'}">${m.image_url ? `<img src="${m.image_url}">` : ''}${m.text ? m.text : ''}</div>`).join('') || '<p class="muted">Hola, el baño se tapó y necesito ayuda hoy. ¿Podrías venir?</p>');
     const quote = d.messages.filter(m => m.kind.startsWith('quote:')).pop();
     $('quoteBox').innerHTML = quote ? `<div class="quote">Cotización: ${quote.text}<br><button class="btn-blue" onclick="confirmService()">Perfecto, confirmado</button></div>` : (me.role === 'ofrezco' ? `<div class="card"><input id="quotePrice" type="number" placeholder="Precio de la cotización $"><input id="quoteEta" type="number" placeholder="Llegada en minutos (ej. 40)"><button class="btn-primary" onclick="sendQuote()">Enviar cotización</button>${(currentPro && currentPro.trade && typeof SERVICE_PRICES !== 'undefined' && SERVICE_PRICES[currentPro.trade]) ? '<p class="muted">Servicios comunes — toca uno para usar su precio de referencia:</p>' + SERVICE_PRICES[currentPro.trade].map(s => `<button class="chip" onclick="document.getElementById('quotePrice').value=${s.price}">${s.name} — ${money(s.price)}</button>`).join(' ') : ''}</div>` : '');
   } catch (e) { $('chatBox').textContent = e.message; }
