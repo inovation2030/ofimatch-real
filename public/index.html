@@ -27,7 +27,7 @@
   <div class="card"><b>📍 CDMX</b><h2>¿Qué necesitas hoy?</h2>
   <input id="search" placeholder="Buscar un servicio..." oninput="loadPros()">
   <div style="margin:8px 0"><label><input type="checkbox" id="roleToggle" onchange="toggleRole()"> Ver como profesional (Ofrezco un oficio)</label></div>
-  <div id="cats" class="grid3"></div></div>
+  <div id="cats" class="grid3"></div><div id="priceList"></div></div>
   <div id="nearby"></div>
   <div class="card"><h3>Modo Emergencia</h3><p class="muted">¿Necesitas ayuda ahora?</p>
   <input id="em-title" placeholder="Ej. BAÑO TAPADO"><input id="em-zone" placeholder="Zona, ej. Miguel Hidalgo, CDMX">
@@ -35,7 +35,7 @@
   <button class="btn-red" onclick="emergency()">ENVIAR SOLICITUD</button></div>
 </section>
 
-<section id="screen-deck" class="screen"><h2 id="deckTitle">Profesionales cerca de ti</h2><p class="muted">Desliza para encontrar tu match</p><div id="deck"></div></section>
+<section id="screen-deck" class="screen"><h2 id="deckTitle">Profesionales cerca de ti</h2><p class="muted">Desliza para encontrar tu match</p><div id="deck"></div><div id="deckPrices"></div></section>
 
 <section id="screen-match" class="screen"><div class="hero" style="text-align:center"><h1>💖 ¡MATCH! 💖</h1><p id="matchText"></p>
 <p>✔ Chat en tiempo real<br>✔ Comparte fotos y detalles<br>✔ Recibe una cotización<br>✔ Confirma el servicio</p>
@@ -76,4 +76,4 @@
 <button onclick="show('chat')" id="nav-chat">💬<br>Mensajes</button>
 <button onclick="show('profile')" id="nav-profile">👤<br>Perfil</button>
 </nav></div>
-<script src="/app.js"></script></body></html>
+<script src="/service-prices.js"></script><script src="/app.js"></script></body></html>
