@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS professionals (
   trade TEXT NOT NULL, zone TEXT NOT NULL, rate INTEGER NOT NULL,
   experience TEXT DEFAULT '', eta_text TEXT DEFAULT 'Disponible',
   distance_km REAL DEFAULT 1.0, photo_url TEXT DEFAULT '', available INTEGER DEFAULT 1,
+  is_example INTEGER DEFAULT 0,
   created_at TEXT NOT NULL, FOREIGN KEY(user_id) REFERENCES users(id)
 );
 CREATE TABLE IF NOT EXISTS swipes (
@@ -75,6 +76,9 @@ CREATE TABLE IF NOT EXISTS requests (
   created_at TEXT NOT NULL
 );
 `);
+
+ // Migración: bases ya creadas antes de la columna is_example.
+ try { db.exec('ALTER TABLE professionals ADD COLUMN is_example INTEGER DEFAULT 0'); } catch {}
 
 const CATEGORIES = ['Plomero','Electricista','Aire Acondicionado','Carpintero','Pintor','Albañil','Limpieza','Mecánico','Tecnología','Mudanzas','Jardinería','Más servicios'];
 const TRACKING_STEPS = ['confirmado','en_camino','llego','trabajando','terminado'];
@@ -152,20 +156,22 @@ app.post('/api/upload', auth, upload.single('photo'), (req, res) => {
 // ---- Profesionales (solo datos públicos; sin dirección exacta ni teléfono) ----
 app.post('/api/professionals', auth, (req, res) => {
   if (req.user.role !== 'ofrezco') return res.status(403).json({ error: 'Solo una cuenta de "Ofrezco un oficio" puede crear un perfil de profesional.' });
-  const { trade, zone, rate, experience, eta_text, distance_km, photo_url } = req.body || {};
+  const { trade, zone, rate, experience, eta_text, distance_km, photo_url, is_example } = req.body || {};
   if (!trade || !zone || !rate) return res.status(400).json({ error: 'Faltan oficio, zona y tarifa.' });
+  const isExample = is_example ? 1 : 0;
   const existing = db.prepare('SELECT * FROM professionals WHERE user_id=?').get(req.user.id);
   if (existing) {
-    db.prepare('UPDATE professionals SET trade=?, zone=?, rate=?, experience=?, eta_text=?, distance_km=?, photo_url=? WHERE user_id=?')
-      .run(trade, zone, Number(rate), experience || '', eta_text || 'Disponible', Number(distance_km) || 1.0, photo_url || existing.photo_url, req.user.id);
+    db.prepare('UPDATE professionals SET trade=?, zone=?, rate=?, experience=?, eta_text=?, distance_km=?, photo_url=?, is_example=? WHERE user_id=?')
+      .run(trade, zone, Number(rate), experience || '', eta_text || 'Disponible', Number(distance_km) || 1.0, photo_url || existing.photo_url, isExample, req.user.id);
     return res.json({ professional: proWithRating(db.prepare('SELECT * FROM professionals WHERE user_id=?').get(req.user.id)) });
   }
-  const r = db.prepare('INSERT INTO professionals (user_id, trade, zone, rate, experience, eta_text, distance_km, photo_url, created_at) VALUES (?,?,?,?,?,?,?,?,?)')
-    .run(req.user.id, trade, zone, Number(rate), experience || '', eta_text || 'Disponible', Number(distance_km) || 1.0, photo_url || '', now());
+  const r = db.prepare('INSERT INTO professionals (user_id, trade, zone, rate, experience, eta_text, distance_km, photo_url, is_example, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    .run(req.user.id, trade, zone, Number(rate), experience || '', eta_text || 'Disponible', Number(distance_km) || 1.0, photo_url || '', isExample, now());
   res.status(201).json({ professional: proWithRating(db.prepare('SELECT * FROM professionals WHERE id=?').get(r.lastInsertRowid)) });
 });
 app.get('/api/professionals', (req, res) => {
-  // Sin registro previo no hay profesionales: empieza en CERO, sin ficticios.
+  // Perfiles de ejemplo (is_example=1, prospectos ficticios de Alberto) y
+  // profesionales reales registrados por su cuenta. Sin dirección exacta ni teléfono.
   let rows = db.prepare('SELECT p.*, u.name FROM professionals p JOIN users u ON u.id=p.user_id WHERE p.available=1 ORDER BY p.distance_km ASC').all();
   if (req.query.trade) rows = rows.filter(r => r.trade === req.query.trade);
   if (req.query.search) rows = rows.filter(r => (r.trade + ' ' + r.name + ' ' + r.zone).toLowerCase().includes(String(req.query.search).toLowerCase()));
