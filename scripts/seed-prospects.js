@@ -14,7 +14,7 @@ const BASE = (process.env.OFIMATCH_URL || 'http://localhost:3000').replace(/\/$/
 const PASSWORD = process.env.PROSPECT_PASSWORD || 'Prospecto-Ejemplo-2026';
 
 const PROSPECTS = [
-  { name: 'Carlos Hernández', trade: 'Plomero', zone: 'Miguel Hidalgo, CDMX', rate: 350, years: 10, eta: 'Llegada en 30 min', dist: 1.2 },
+  { name: 'Carlos Hernández', trade: 'Plomero', zone: 'Miguel Hidalgo, CDMX', rate: 350, years: 10, eta: 'Llegada en 30 min', dist: 1.2, ai: true },
   { name: 'Miguel Torres', trade: 'Electricista', zone: 'Benito Juárez, CDMX', rate: 350, years: 8, eta: 'Llegada en 40 min', dist: 0.8 },
   { name: 'Jorge Ramírez', trade: 'Aire Acondicionado', zone: 'Coyoacán, CDMX', rate: 800, years: 6, eta: 'Llegada en 45 min', dist: 1.5 },
   { name: 'José Martínez', trade: 'Carpintero', zone: 'Azcapotzalco, CDMX', rate: 450, years: 12, eta: 'Llegada en 50 min', dist: 2.1 },
@@ -42,7 +42,9 @@ async function req(path, opts = {}, token) {
   let created = 0, skipped = 0;
   for (let i = 0; i < PROSPECTS.length; i++) {
     const p = PROSPECTS[i];
-    if (existingExampleTrades.has(p.trade)) { console.log(`SKIP ${p.trade}: ya tiene prospecto de ejemplo`); skipped++; continue; }
+    // Carlos (Plomero) además responde con IA: aunque ya exista su perfil,
+    // siempre se actualiza para activar ai_reply.
+    if (existingExampleTrades.has(p.trade) && !p.ai) { console.log(`SKIP ${p.trade}: ya tiene prospecto de ejemplo`); skipped++; continue; }
     const slug = p.trade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]+/g, '-');
     const email = `prospecto-${slug}@ejemplo.ofimatch.mx`;
     const phone = '55000000' + String(10 + i);
@@ -54,7 +56,7 @@ async function req(path, opts = {}, token) {
       if (login.status !== 200) { console.error(`FAIL ${p.trade}: no se pudo entrar a la cuenta ${email}`); continue; }
       token = login.d.token;
     } else { console.error(`FAIL ${p.trade}: registro ${reg.status}`, JSON.stringify(reg.d)); continue; }
-    const prof = await req('/api/professionals', { method: 'POST', body: JSON.stringify({ trade: p.trade, zone: p.zone, rate: p.rate, experience: `Prospecto ficticio (ejemplo) · ${p.years} años de experiencia`, eta_text: p.eta, distance_km: p.dist, is_example: true }) }, token);
+    const prof = await req('/api/professionals', { method: 'POST', body: JSON.stringify({ trade: p.trade, zone: p.zone, rate: p.rate, experience: `Prospecto ficticio (ejemplo) · ${p.years} años de experiencia`, eta_text: p.eta, distance_km: p.dist, is_example: true, ai_reply: !!p.ai }) }, token);
     if (prof.status === 201 || prof.status === 200) { console.log(`OK ${p.trade}: ${p.name} — desde $${p.rate} — ${p.dist} km`); created++; }
     else console.error(`FAIL ${p.trade}: perfil ${prof.status}`, JSON.stringify(prof.d));
   }
