@@ -27,6 +27,9 @@ async function init() {
     : '<div class="card">Pago real con Mercado Pago (solo tarjeta).</div>';
   const cats = [['Plomero','🚰'],['Electricista','⚡'],['Aire Acondicionado','❄️'],['Carpintero','🔨'],['Pintor','🎨'],['Albañil','🧱'],['Limpieza','🧹'],['Mecánico','🔧'],['Tecnología','💻'],['Mudanzas','📦'],['Jardinería','🌿'],['Más servicios','⋯']];
   $('cats').innerHTML = cats.map(([c, e]) => `<div class="cat" onclick="openDeck('${c}')"><b>${e}</b>${c}</div>`).join('');
+  if (typeof SERVICE_PRICES !== 'undefined') {
+    $('priceList').innerHTML = '<div class="card"><h3>💰 Cotizaciones de referencia</h3><p class="muted">Precios de referencia por oficio. Toca una categoría para ver sus servicios más comunes.</p>' + cats.map(([c]) => { const l = SERVICE_PRICES[c]; return l ? `<p><b>${c}</b> — desde ${money(Math.min(...l.map(s => s.price)))}</p>` : ''; }).join('') + '</div>';
+  }
   if (token) { try { me = (await api('/api/auth/me')).user; } catch { token = ''; localStorage.removeItem('ofimatch_token'); } }
   if (me) { $('who').textContent = me.name; $('logoutBtn').style.display = ''; show('home'); } else show('auth');
 }
@@ -44,7 +47,12 @@ async function loadPros() {
     $('nearby').innerHTML = pros.length ? '<div class="card"><h3>Profesionales cercanos</h3>' + pros.slice(0, 4).map(p => `<p><b>${p.name}</b> — ${p.trade} · ${p.distance_km} km · ${p.avg_rating ? '★' + p.avg_rating + ' (' + p.review_count + ')' : 'Sin reseñas aún'} · Desde ${money(p.rate)}</p>`).join('') + '</div>' : '<div class="card"><p>No hay profesionales todavía. Sé el primero en registrarte como profesional.</p></div>';
   } catch (e) { $('nearby').innerHTML = '<div class="card">' + e.message + '</div>'; }
 }
-function openDeck(trade) { $('deckTitle').textContent = trade + ' cerca de ti'; renderDeck(pros.filter(p => p.trade === trade)); show('deck'); }
+function priceListHTML(trade) {
+  const list = (typeof SERVICE_PRICES !== 'undefined' && SERVICE_PRICES[trade]) || [];
+  if (!list.length) return '';
+  return '<div class="card"><h3>💰 Cotizaciones — ' + trade + '</h3><p class="muted">Servicios más comunes. Precios de referencia desde $; el profesional confirma la cotización final en el chat.</p>' + list.map(s => '<p><b>' + s.name + '</b> — Desde ' + money(s.price) + '</p>').join('') + '</div>';
+}
+function openDeck(trade) { $('deckTitle').textContent = trade + ' cerca de ti'; renderDeck(pros.filter(p => p.trade === trade)); $('deckPrices').innerHTML = priceListHTML(trade); show('deck'); }
 function renderDeck(list) {
   if (!list.length) { $('deck').innerHTML = '<div class="card">No hay profesionales de este oficio todavía.</div>'; return; }
   const p = list[0]; currentPro = p;
@@ -66,7 +74,7 @@ async function loadChat() {
   try { const d = await api('/api/conversations/' + currentConv + '/messages');
     $('chatBox').innerHTML = d.messages.map(m => `<div class="msg ${m.sender_id === me.id ? 'me' : 'them'}">${m.image_url ? `<img src="${m.image_url}">` : ''}${m.text ? m.text : ''}</div>`).join('') || '<p class="muted">Hola, el baño se tapó y necesito ayuda hoy. ¿Podrías venir?</p>';
     const quote = d.messages.filter(m => m.kind.startsWith('quote:')).pop();
-    $('quoteBox').innerHTML = quote ? `<div class="quote">Cotización: ${quote.text}<br><button class="btn-blue" onclick="confirmService()">Perfecto, confirmado</button></div>` : (me.role === 'ofrezco' ? `<div class="card"><input id="quotePrice" type="number" placeholder="Precio de la cotización $"><input id="quoteEta" type="number" placeholder="Llegada en minutos (ej. 40)"><button class="btn-primary" onclick="sendQuote()">Enviar cotización</button></div>` : '');
+    $('quoteBox').innerHTML = quote ? `<div class="quote">Cotización: ${quote.text}<br><button class="btn-blue" onclick="confirmService()">Perfecto, confirmado</button></div>` : (me.role === 'ofrezco' ? `<div class="card"><input id="quotePrice" type="number" placeholder="Precio de la cotización $"><input id="quoteEta" type="number" placeholder="Llegada en minutos (ej. 40)"><button class="btn-primary" onclick="sendQuote()">Enviar cotización</button>${(currentPro && currentPro.trade && typeof SERVICE_PRICES !== 'undefined' && SERVICE_PRICES[currentPro.trade]) ? '<p class="muted">Servicios comunes — toca uno para usar su precio de referencia:</p>' + SERVICE_PRICES[currentPro.trade].map(s => `<button class="chip" onclick="document.getElementById('quotePrice').value=${s.price}">${s.name} — ${money(s.price)}</button>`).join(' ') : ''}</div>` : '');
   } catch (e) { $('chatBox').textContent = e.message; }
 }
 async function sendMsg() {
