@@ -18,6 +18,12 @@ chat, pago con tarjeta por Mercado Pago, rastreo tipo Rappi y calificación.
   en Inicio, en el mazo de cada categoría y como atajos al cotizar en el chat.
   Son precios orientativos; el profesional confirma la cotización final en
   el chat antes de que el cliente confirme el servicio.
+- **Prospectos ficticios (ejemplos):** un perfil de ejemplo por oficio
+  (12 en total), creados con `scripts/seed-prospects.js` y marcados con el
+  distintivo "🧪 Prospecto de ejemplo" en el mazo y en Profesionales
+  cercanos, para que la página no se vea vacía mientras llegan los primeros
+  profesionales reales. No son personas reales y no responden mensajes; los
+  profesionales reales que se registren aparecen sin el distintivo.
 - **Pagos: solo con tarjeta, cero efectivo.** Pasarela: Mercado Pago.
 - **Precios (fórmula única en `lib/pricing.js`):** precio del servicio +
   $150 de comisión fija por cada lado. Los $150 son **libres de comisión,
