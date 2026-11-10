@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OfiMatch — Conecta. Confía. Soluciona.</title>
+<link rel="stylesheet" href="/styles.css"></head>
+<body><div class="app">
+<header class="top"><div class="logo">🏠❤️ <b>Ofi</b><span>Match</span><small>Conecta. Confía. Soluciona.</small></div>
+<div><span id="who"></span> <button id="logoutBtn" style="display:none;background:#ffffff22;color:#fff;padding:8px">Salir</button></div></header>
+<main>
+<div id="payMode"></div>
+
+<section id="screen-auth" class="screen active">
+  <div class="hero"><h1>Encuentra el profesional perfecto en minutos</h1>
+  <div class="pill"><i style="background:#facc15">⚡</i> Rápido</div>
+  <div class="pill"><i style="background:#ff2d78">🛡️</i> Seguro</div>
+  <div class="pill"><i style="background:#ec4899">📍</i> Cerca de ti</div></div>
+  <div class="card"><h2>Crear cuenta / Iniciar sesión</h2>
+  <p class="muted">Regístrate solo: elige si buscas un oficio o si ofreces uno. Sin cuentas de ejemplo.</p>
+  <input id="a-name" placeholder="Nombre completo"><input id="a-phone" placeholder="Teléfono">
+  <input id="a-email" placeholder="Correo electrónico" type="email"><input id="a-pass" placeholder="Contraseña (mín. 6 caracteres)" type="password">
+  <select id="a-role"><option value="busco">Busco un oficio</option><option value="ofrezco">Ofrezco un oficio</option></select>
+  <button class="btn-primary" onclick="register()">Crear cuenta</button>
+  <button class="btn-blue" onclick="login()">Iniciar sesión</button>
+  <p id="authMsg" class="muted"></p></div>
+</section>
+
+<section id="screen-home" class="screen">
+  <div class="card"><b>📍 CDMX</b><h2>¿Qué necesitas hoy?</h2>
+  <input id="search" placeholder="Buscar un servicio..." oninput="loadPros()">
+  <div style="margin:8px 0"><label><input type="checkbox" id="roleToggle" onchange="toggleRole()"> Ver como profesional (Ofrezco un oficio)</label></div>
+  <div id="cats" class="grid3"></div></div>
+  <div id="nearby"></div>
+  <div class="card"><h3>Modo Emergencia</h3><p class="muted">¿Necesitas ayuda ahora?</p>
+  <input id="em-title" placeholder="Ej. BAÑO TAPADO"><input id="em-zone" placeholder="Zona, ej. Miguel Hidalgo, CDMX">
+  <input id="em-budget" placeholder="Hasta $ (ej. 800)" type="number"><input id="em-cat" placeholder="Categoría, ej. Plomero">
+  <button class="btn-red" onclick="emergency()">ENVIAR SOLICITUD</button></div>
+</section>
+
+<section id="screen-deck" class="screen"><h2 id="deckTitle">Profesionales cerca de ti</h2><p class="muted">Desliza para encontrar tu match</p><div id="deck"></div></section>
+
+<section id="screen-match" class="screen"><div class="hero" style="text-align:center"><h1>💖 ¡MATCH! 💖</h1><p id="matchText"></p>
+<p>✔ Chat en tiempo real<br>✔ Comparte fotos y detalles<br>✔ Recibe una cotización<br>✔ Confirma el servicio</p>
+<button class="btn-primary" onclick="openChat(currentConv)">Ir al chat</button></div></section>
+
+<section id="screen-chat" class="screen"><h2 id="chatTitle">Chat</h2><div id="chatBox" class="card"></div>
+<div id="quoteBox"></div>
+<input id="chatText" placeholder="Escribe un mensaje...">
+<input type="file" id="chatPhoto" accept="image/*">
+<button class="btn-blue" onclick="sendMsg()">Enviar</button>
+<button class="btn-ghost" onclick="show('home')">Volver a Inicio</button></section>
+
+<section id="screen-services" class="screen"><h2>Mis servicios</h2><div id="services"></div></section>
+
+<section id="screen-pay" class="screen"><h2>🔒 Pago seguro</h2><p class="muted">Paga desde la app de forma segura — solo con tarjeta, cero efectivo.</p><div id="payBox" class="card"></div></section>
+
+<section id="screen-track" class="screen"><h2>📍 Rastrear servicio</h2><div id="trackBox"></div></section>
+
+<section id="screen-rate" class="screen"><h2>⭐ Califica el servicio</h2><div id="rateBox" class="card">
+<p>¿Cómo fue tu experiencia?</p><div class="stars" id="stars"></div>
+<textarea id="rateComment" placeholder="Llegó puntual, muy profesional..."></textarea>
+<button class="btn-blue" onclick="submitReview()">Enviar calificación</button></div></section>
+
+<section id="screen-pro" class="screen"><h2>🧰 Para profesionales</h2><p class="muted">Recibe trabajos cerca de ti.</p>
+<div class="card"><h3>Mi perfil de profesional</h3>
+<input id="p-trade" placeholder="Oficio, ej. Plomero"><input id="p-zone" placeholder="Zona, ej. CDMX">
+<input id="p-rate" placeholder="Tarifa desde $ (ej. 350)" type="number"><input id="p-exp" placeholder="Experiencia">
+<input id="p-eta" placeholder="Llegada, ej. Llegada en 30 min"><input id="p-dist" placeholder="Distancia aprox. en km, ej. 1.2" type="number" step="0.1">
+<input type="file" id="p-photo" accept="image/*"><button class="btn-primary" onclick="savePro()">Guardar mi perfil</button><p id="proMsg" class="muted"></p></div>
+<div id="requests"></div></section>
+
+<section id="screen-profile" class="screen"><h2>Perfil</h2><div id="profileBox" class="card"></div></section>
+</main>
+<nav class="bottom">
+<button onclick="show('home')" id="nav-home">🏠<br>Inicio</button>
+<button onclick="show('services')" id="nav-services">🧾<br>Mis servicios</button>
+<button class="pub" onclick="show('home');document.getElementById('em-title').focus()">+</button>
+<button onclick="show('chat')" id="nav-chat">💬<br>Mensajes</button>
+<button onclick="show('profile')" id="nav-profile">👤<br>Perfil</button>
+</nav></div>
+<script src="/app.js"></script></body></html>
