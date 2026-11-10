@@ -114,6 +114,26 @@ async function req(p, opts = {}, token) {
     check('perfil de ejemplo se marca is_example', ex.status === 200 && ex.d.professional.is_example === 1, JSON.stringify(ex.d));
     const list3 = await req('/api/professionals?trade=Plomero');
     check('listado muestra el distintivo de ejemplo', (list3.d.professionals[0] || {}).is_example === 1);
+
+    // 12. Prospecto con IA: Carlos contesta solo con cotización
+    const aiPro = await req('/api/auth/register', { method: 'POST', body: JSON.stringify({ name: 'Carlos IA', phone: '5533333333', email: 'carlos-ia@test.mx', password: 'secreto1', role: 'ofrezco' }) });
+    check('registro profesional IA', aiPro.status === 201, JSON.stringify(aiPro.d));
+    const aiProf = await req('/api/professionals', { method: 'POST', body: JSON.stringify({ trade: 'Plomero', zone: 'CDMX', rate: 350, experience: 'Prospecto ficticio (ejemplo)', eta_text: 'Llegada en 30 min', distance_km: 1.2, is_example: true, ai_reply: true }) }, aiPro.d.token);
+    check('perfil IA se marca ai_reply', aiProf.status === 201 && aiProf.d.professional.ai_reply === 1, JSON.stringify(aiProf.d));
+    const aiList = await req('/api/professionals?trade=Plomero');
+    const aiTarget = (aiList.d.professionals || []).find(p => p.name === 'Carlos IA');
+    check('listado muestra el distintivo IA', aiTarget && aiTarget.ai_reply === 1, JSON.stringify(aiTarget));
+    const aiSwipe = await req('/api/swipes', { method: 'POST', body: JSON.stringify({ professionalId: aiTarget.id, action: 'liked' }) }, client.d.token);
+    check('match con prospecto IA', aiSwipe.d.matched === true && !!aiSwipe.d.conversationId, JSON.stringify(aiSwipe.d));
+    const aiMsg = await req(`/api/conversations/${aiSwipe.d.conversationId}/messages`, { method: 'POST', body: JSON.stringify({ text: 'Hola, el baño se tapó, ¿podrías venir hoy?' }) }, client.d.token);
+    check('cliente escribe al prospecto IA', aiMsg.status === 201);
+    await wait(8000);
+    const convs = await req('/api/conversations', {}, aiPro.d.token);
+    check('lista de conversaciones muestra el chat', (convs.d.conversations || []).length >= 1 && convs.d.conversations[0].client_name === 'Ana Cliente', JSON.stringify(convs.d));
+    const aiChat = await req(`/api/conversations/${aiSwipe.d.conversationId}/messages`, {}, client.d.token);
+    const aiReplies = (aiChat.d.messages || []).filter(m => m.sender_id !== client.d.user.id && (m.text || '').includes('🤖'));
+    check('IA contesta sola en el chat', aiReplies.length >= 1, JSON.stringify(aiChat.d.messages));
+    check('IA identifica el servicio y cotiza', aiReplies.some(m => (m.text || '').includes('Desazolve')) && (aiChat.d.messages || []).some(m => (m.kind || '').startsWith('quote:600')), JSON.stringify(aiChat.d.messages));
     const prices = await fetch(BASE + '/service-prices.js');
     const pricesText = prices.ok ? await prices.text() : '';
     check('cotizaciones de referencia sirven', prices.ok && pricesText.includes('SERVICE_PRICES') && pricesText.includes('Desazolve de baño'));
